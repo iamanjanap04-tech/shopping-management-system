@@ -14,12 +14,19 @@ const reviewRoutes = require('./routes/reviews');
 const reportRoutes = require('./routes/reports');
 
 const app = express();
+
+// ✅ IMPORTANT: use Railway port
 const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
+
+// Static files
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
@@ -28,18 +35,22 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/reports', reportRoutes);
 
+// Default route
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Start server
 async function start() {
   try {
-    await initialize();   // ✅ connects MySQL
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+    await initialize(); // DB connection
+
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Server running on port ${PORT}`);
     });
+
   } catch (err) {
-    console.error('Failed to start:', err);
+    console.error('❌ Failed to start:', err);
     process.exit(1);
   }
 }
