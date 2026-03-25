@@ -1,0 +1,143 @@
+USE railway;
+-- ============================================
+-- SHOPPING MANAGEMENT SYSTEM - MYSQL SCHEMA
+-- ============================================
+
+-- DROP TABLES (in correct order)
+DROP TABLE IF EXISTS REVIEWS;
+DROP TABLE IF EXISTS PAYMENTS;
+DROP TABLE IF EXISTS ORDER_ITEMS;
+DROP TABLE IF EXISTS ORDERS;
+DROP TABLE IF EXISTS CART;
+DROP TABLE IF EXISTS PRODUCTS;
+DROP TABLE IF EXISTS USERS;
+
+-- ============================================
+-- USERS TABLE
+-- ============================================
+CREATE TABLE USERS (
+    USER_ID INT AUTO_INCREMENT PRIMARY KEY,
+    NAME VARCHAR(100) NOT NULL,
+    EMAIL VARCHAR(255) UNIQUE NOT NULL,
+    PASSWORD VARCHAR(255) NOT NULL,
+    ROLE VARCHAR(20) NOT NULL,
+    CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CHECK (ROLE IN ('Customer', 'Admin'))
+);
+
+-- ============================================
+-- PRODUCTS TABLE
+-- ============================================
+CREATE TABLE PRODUCTS (
+    PRODUCT_ID INT AUTO_INCREMENT PRIMARY KEY,
+    NAME VARCHAR(255) NOT NULL,
+    PRICE DECIMAL(10,2) NOT NULL,
+    DISCOUNT DECIMAL(5,2) DEFAULT 0,
+    STOCK INT DEFAULT 0,
+    IMAGE_URL VARCHAR(500) DEFAULT 'default-product.png',
+    CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- CART TABLE
+-- ============================================
+CREATE TABLE CART (
+    CART_ID INT AUTO_INCREMENT PRIMARY KEY,
+    USER_ID INT NOT NULL,
+    PRODUCT_ID INT NOT NULL,
+    QUANTITY INT NOT NULL DEFAULT 1,
+    ADDED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (USER_ID, PRODUCT_ID),
+
+    FOREIGN KEY (USER_ID) REFERENCES USERS(USER_ID) ON DELETE CASCADE,
+    FOREIGN KEY (PRODUCT_ID) REFERENCES PRODUCTS(PRODUCT_ID) ON DELETE CASCADE
+);
+
+-- ============================================
+-- ORDERS TABLE
+-- ============================================
+CREATE TABLE ORDERS (
+    ORDER_ID INT AUTO_INCREMENT PRIMARY KEY,
+    USER_ID INT NOT NULL,
+    TOTAL_AMOUNT DECIMAL(10,2) NOT NULL,
+    STATUS VARCHAR(20) DEFAULT 'PENDING',
+    CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CHECK (STATUS IN ('PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED')),
+
+    FOREIGN KEY (USER_ID) REFERENCES USERS(USER_ID)
+);
+
+-- ============================================
+-- ORDER ITEMS TABLE
+-- ============================================
+CREATE TABLE ORDER_ITEMS (
+    ORDER_ITEM_ID INT AUTO_INCREMENT PRIMARY KEY,
+    ORDER_ID INT NOT NULL,
+    PRODUCT_ID INT NOT NULL,
+    QUANTITY INT NOT NULL,
+    UNIT_PRICE DECIMAL(10,2) NOT NULL,
+    SUBTOTAL DECIMAL(10,2) NOT NULL,
+
+    FOREIGN KEY (ORDER_ID) REFERENCES ORDERS(ORDER_ID) ON DELETE CASCADE,
+    FOREIGN KEY (PRODUCT_ID) REFERENCES PRODUCTS(PRODUCT_ID)
+);
+
+-- ============================================
+-- PAYMENTS TABLE
+-- ============================================
+CREATE TABLE PAYMENTS (
+    PAYMENT_ID INT AUTO_INCREMENT PRIMARY KEY,
+    ORDER_ID INT NOT NULL,
+    AMOUNT DECIMAL(10,2) NOT NULL,
+    STATUS VARCHAR(20) DEFAULT 'COMPLETED',
+    PAYMENT_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (ORDER_ID) REFERENCES ORDERS(ORDER_ID)
+);
+
+-- ============================================
+-- REVIEWS TABLE
+-- ============================================
+CREATE TABLE REVIEWS (
+    REVIEW_ID INT AUTO_INCREMENT PRIMARY KEY,
+    USER_ID INT NOT NULL,
+    PRODUCT_ID INT NOT NULL,
+    RATING INT NOT NULL,
+    COMMENT VARCHAR(1000),
+    REVIEW_IMAGE_URL VARCHAR(500) DEFAULT '',
+    CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (USER_ID, PRODUCT_ID),
+
+    CHECK (RATING BETWEEN 1 AND 5),
+
+    FOREIGN KEY (USER_ID) REFERENCES USERS(USER_ID),
+    FOREIGN KEY (PRODUCT_ID) REFERENCES PRODUCTS(PRODUCT_ID)
+);
+
+-- ============================================
+-- INDEXES
+-- ============================================
+CREATE INDEX IDX_CART_USER ON CART(USER_ID);
+CREATE INDEX IDX_ORDERS_USER ON ORDERS(USER_ID);
+CREATE INDEX IDX_ORDER_ITEMS_ORDER ON ORDER_ITEMS(ORDER_ID);
+CREATE INDEX IDX_REVIEWS_PRODUCT ON REVIEWS(PRODUCT_ID);
+
+-- ============================================
+-- DEFAULT DATA
+-- ============================================
+
+-- Admin user
+INSERT INTO USERS (NAME, EMAIL, PASSWORD, ROLE) VALUES 
+('Admin', 'admin@shop.com', '$2a$10$rQZ8K7Y6X5W4V3U2T1S0R9Q8P7O6N5M4L3K2J1I0H9G8F7E6D5C4B3A2', 'Admin');
+
+-- Sample products
+INSERT INTO PRODUCTS (NAME, PRICE, DISCOUNT, STOCK, IMAGE_URL) VALUES 
+('Wireless Bluetooth Headphones', 79.99, 15, 50, 'headphones.jpg'),
+('Smart Watch Pro', 199.99, 20, 30, 'smartwatch.jpg'),
+('Portable Power Bank 20000mAh', 49.99, 10, 100, 'powerbank.jpg'),
+('USB-C Hub 7-in-1', 39.99, 5, 75, 'usbhub.jpg'),
+('Mechanical Keyboard RGB', 89.99, 25, 40, 'keyboard.jpg'),
+('Wireless Mouse Ergonomic', 29.99, 0, 120, 'mouse.jpg');

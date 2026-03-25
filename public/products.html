@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Products - ShopMax</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="logo">ShopMax</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/products.html">Products</a>
+        <a href="/cart.html" class="cart-link">
+          <span class="cart-icon">🛒</span>
+          <span id="cartCount" class="cart-badge">0</span>
+        </a>
+        <span id="authButtons"><a href="/login.html" class="btn btn-outline">Login</a></span>
+        <span id="userMenu" class="hidden">
+          <a href="/orders.html" class="btn btn-outline">My Orders</a>
+          <button id="logoutBtn" class="btn btn-outline">Logout</button>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <h2 class="page-title">All Products</h2>
+    <section class="filters">
+      <div class="filter-group">
+        <label for="searchInput">Search</label>
+        <input type="text" id="searchInput" placeholder="Search products (name, color, material, brand)">
+        <button id="searchBtn" class="btn btn-primary">Search</button>
+        <button id="clearSearchBtn" class="btn btn-outline">Clear</button>
+      </div>
+      <p id="searchResultInfo" class="hint-text"></p>
+    </section>
+    <section class="products-grid" id="productsGrid"></section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    let searchTimer = null;
+
+    async function loadProductsWithSearch() {
+      const query = (document.getElementById('searchInput')?.value || '').trim();
+      const grid = document.getElementById('productsGrid');
+      const info = document.getElementById('searchResultInfo');
+      grid.innerHTML = '<div class="loading">Loading...</div>';
+      try {
+        const products = await api.getProducts(query ? { q: query } : {});
+        grid.innerHTML = products.length
+          ? products.map(renderProductCard).join('')
+          : '<p class="empty">No related products found.</p>';
+        info.textContent = query
+          ? `Showing ${products.length} result(s) related to "${query}".`
+          : '';
+      } catch {
+        grid.innerHTML = '<p class="error">Failed to load products.</p>';
+        info.textContent = '';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initAuth();
+      updateCartCount();
+      loadProductsWithSearch();
+      document.getElementById('searchBtn')?.addEventListener('click', loadProductsWithSearch);
+      document.getElementById('clearSearchBtn')?.addEventListener('click', () => {
+        document.getElementById('searchInput').value = '';
+        loadProductsWithSearch();
+      });
+      document.getElementById('searchInput')?.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(loadProductsWithSearch, 250);
+      });
+    });
+  </script>
+</body>
+</html>

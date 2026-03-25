@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product - ShopMax</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="logo">ShopMax</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/products.html">Products</a>
+        <a href="/cart.html" class="cart-link">
+          <span class="cart-icon">🛒</span>
+          <span id="cartCount" class="cart-badge">0</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content product-detail-page">
+    <div id="productDetail" class="product-detail">
+      <div class="loading">Loading...</div>
+    </div>
+    <section class="reviews-section">
+      <h3>Reviews <span id="avgRating" class="stars"></span></h3>
+      <p id="reviewHint" class="hint-text"></p>
+      <div id="reviewForm" class="review-form hidden">
+        <h4>Add your review</h4>
+        <div class="form-group">
+          <label>Rating</label>
+          <div class="star-input" id="starInput">
+            <span data-rating="1">☆</span><span data-rating="2">☆</span><span data-rating="3">☆</span><span data-rating="4">☆</span><span data-rating="5">☆</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Comment</label>
+          <textarea id="reviewComment" rows="3" placeholder="Share your experience..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Add Photo (optional)</label>
+          <input type="file" id="reviewImage" accept="image/*">
+        </div>
+        <button id="submitReview" class="btn btn-primary">Submit Review</button>
+      </div>
+      <div id="reviewsList" class="reviews-list"></div>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const productId = params.get('id');
+    let selectedRating = 0;
+    function parseDescriptionDetails(description) {
+      const details = {};
+      const plainLines = [];
+      String(description || '').split('\n').forEach((line) => {
+        const text = line.trim();
+        if (!text) return;
+        const match = text.match(/^(Color|Material|Brand):\s*(.*)$/i);
+        if (match) {
+          details[match[1].toLowerCase()] = match[2].trim();
+        } else {
+          plainLines.push(text);
+        }
+      });
+      return { details, plainText: plainLines.join(' ') };
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      initAuth();
+      updateCartCount();
+      if (!productId) { location.href = '/'; return; }
+      await loadProductDetail();
+      await loadReviews();
+      document.getElementById('starInput')?.addEventListener('click', (e) => {
+        if (e.target.dataset.rating) {
+          selectedRating = parseInt(e.target.dataset.rating);
+          [...document.querySelectorAll('#starInput span')].forEach((s, i) => {
+            s.textContent = i < selectedRating ? '★' : '☆';
+          });
+        }
+      });
+      document.getElementById('submitReview')?.addEventListener('click', submitReview);
+    });
+
+    async function loadProductDetail() {
+      const product = await api.getProduct(productId);
+      const el = document.getElementById('productDetail');
+      const price = Number(product.PRICE || 0);
+      const discount = Number(product.DISCOUNT || 0);
+      const finalPrice = Number(product.FINAL_PRICE || (price * (1 - discount / 100)));
+      const outOfStock = product.STOCK === 0;
+      const parsed = parseDescriptionDetails(product.DESCRIPTION || '');
+      el.innerHTML = `
+        <div class="product-detail-grid">
+          <div class="product-image">
+            <img src="${product.IMAGE_URL?.startsWith('http') || product.IMAGE_URL?.startsWith('/') ? product.IMAGE_URL : '/uploads/' + product.IMAGE_URL}" alt="${product.NAME}" onerror="this.src='https://via.placeholder.com/400x400?text=No+Image'">
+          </div>
+          <div class="product-info">
+            <h1>${product.NAME}</h1>
+            <p class="hint-text"><strong>Product ID:</strong> ${product.PRODUCT_ID}</p>
+            <p class="hint-text"><strong>Description:</strong> ${parsed.plainText || 'No description available.'}</p>
+            <p class="hint-text"><strong>Color:</strong> ${parsed.details.color || 'N/A'}</p>
+            <p class="hint-text"><strong>Material:</strong> ${parsed.details.material || 'N/A'}</p>
+            <p class="hint-text"><strong>Brand:</strong> ${parsed.details.brand || 'N/A'}</p>
+            <p class="product-rating" id="productRatingInline">
+              ${Number(product.TOTAL_REVIEWS || 0) > 0
+                ? `${'★'.repeat(Math.round(Number(product.AVG_RATING || 0)))}${'☆'.repeat(5 - Math.round(Number(product.AVG_RATING || 0)))} ${Number(product.AVG_RATING || 0).toFixed(1)} (${Number(product.TOTAL_REVIEWS || 0)} reviews)`
+                : 'No ratings yet'}
+            </p>
+            <div class="price-block">
+              ${discount > 0 ? `<span class="original-price">$${price.toFixed(2)}</span><span class="discount-badge">${discount}% OFF</span>` : ''}
+              <span class="final-price">$${finalPrice.toFixed(2)}</span>
+            </div>
+            <p class="stock-status ${outOfStock ? 'out' : 'in'}">${outOfStock ? 'OUT OF STOCK' : `In Stock (${product.STOCK} available)`}</p>
+            <div class="product-actions">
+              <input type="number" id="qty" min="1" max="${product.STOCK}" value="1" ${outOfStock ? 'disabled' : ''}>
+              <button id="addToCart" class="btn btn-primary" ${outOfStock ? 'disabled' : ''}>Add to Cart</button>
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('addToCart')?.addEventListener('click', () => addToCart(productId));
+    }
+
+    async function addToCart(id) {
+      const qty = parseInt(document.getElementById('qty').value) || 1;
+      if (!api.getToken()) { alert('Please login to add to cart'); location.href = '/login.html?redirect=' + location.href; return; }
+      try {
+        await api.addToCart(id, qty);
+        alert('Added to cart!');
+        updateCartCount();
+      } catch (e) { alert(e.message || 'Failed'); }
+    }
+
+    async function loadReviews() {
+      try {
+        const data = await api.getReviews(productId);
+        const avg = Number(data.averageRating || 0);
+        const total = Number(data.totalReviews || 0);
+        const fullStars = Math.round(avg);
+        const stars = '★'.repeat(fullStars) + '☆'.repeat(5 - fullStars);
+        document.getElementById('avgRating').textContent = total ? `(${avg.toFixed(1)} ★, ${total} reviews)` : '(No reviews yet)';
+        const inlineRating = document.getElementById('productRatingInline');
+        if (inlineRating) {
+          inlineRating.textContent = total ? `${stars} ${avg.toFixed(1)} (${total} reviews)` : 'No ratings yet';
+        }
+        document.getElementById('reviewsList').innerHTML = data.reviews.map(r => `
+          <div class="review-item">
+            <div class="review-header">
+              <strong>${r.NAME}</strong>
+              <span class="review-stars">${'★'.repeat(Number(r.RATING || 0))}${'☆'.repeat(5 - Number(r.RATING || 0))}</span>
+            </div>
+            <p>${r.COMMENT || ''}</p>
+            ${r.REVIEW_IMAGE_URL ? `<img class="review-photo" src="${r.REVIEW_IMAGE_URL}" alt="Review photo" onerror="this.style.display='none'">` : ''}
+            <small style="color:#6c757d;">${new Date(r.CREATED_AT).toLocaleDateString()}</small>
+          </div>
+        `).join('') || '<p>No reviews yet.</p>';
+
+        const user = api.getUser();
+        const hint = document.getElementById('reviewHint');
+        if (!api.getToken()) {
+          hint.textContent = 'Login as Customer to write a review.';
+          return;
+        }
+        if (user?.role !== 'Customer') {
+          hint.textContent = 'Only Customer accounts can submit reviews.';
+          return;
+        }
+        hint.textContent = 'Write your review based on your purchase experience.';
+        document.getElementById('reviewForm').classList.remove('hidden');
+      } catch (e) {
+        document.getElementById('reviewsList').innerHTML = `<p class="error">${e.message || 'Failed to load reviews.'}</p>`;
+      }
+    }
+
+    async function submitReview() {
+      if (selectedRating < 1) { alert('Please select a rating'); return; }
+      try {
+        const imageFile = document.getElementById('reviewImage').files[0];
+        await api.addReview(productId, selectedRating, document.getElementById('reviewComment').value, imageFile);
+        alert('Review submitted!');
+        selectedRating = 0;
+        document.getElementById('reviewComment').value = '';
+        document.getElementById('reviewImage').value = '';
+        [...document.querySelectorAll('#starInput span')].forEach((s) => {
+          s.textContent = '☆';
+        });
+        loadReviews();
+      } catch (e) { alert(e.message || 'Failed'); }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopMax - Online Shopping</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="logo">ShopMax</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/products.html">Products</a>
+        <a href="/cart.html" class="cart-link">
+          <span class="cart-icon">🛒</span>
+          <span id="cartCount" class="cart-badge">0</span>
+        </a>
+        <span id="authButtons">
+          <a href="/login.html" class="btn btn-outline">Login</a>
+          <a href="/signup.html" class="btn btn-primary">Sign Up</a>
+        </span>
+        <span id="userMenu" class="hidden">
+          <span id="userName" class="user-name"></span>
+          <a href="/orders.html" class="btn btn-outline">My Orders</a>
+          <button id="logoutBtn" class="btn btn-outline">Logout</button>
+        </span>
+        <span id="adminMenu" class="hidden">
+          <a href="/admin.html" class="btn btn-primary">Admin</a>
+          <button id="adminLogout" class="btn btn-outline">Logout</button>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="hero">
+      <h1>Welcome to ShopMax</h1>
+      <p>Discover amazing products at the best prices</p>
+    </section>
+    <section class="filters">
+      <div class="filter-group">
+        <label for="homeSearchInput">Search</label>
+        <input type="text" id="homeSearchInput" placeholder="Search item (name, color, material, brand)">
+        <button id="homeSearchBtn" class="btn btn-primary">Search</button>
+        <button id="homeClearSearchBtn" class="btn btn-outline">Clear</button>
+      </div>
+      <p id="homeSearchInfo" class="hint-text"></p>
+    </section>
+
+    <section class="products-grid" id="productsGrid">
+      <div class="loading" id="loading">Loading products...</div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2025 ShopMax. All rights reserved.</p>
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    let homeSearchTimer = null;
+    async function loadHomeProductsWithSearch() {
+      const query = (document.getElementById('homeSearchInput')?.value || '').trim();
+      const grid = document.getElementById('productsGrid');
+      const info = document.getElementById('homeSearchInfo');
+      grid.innerHTML = '<div class="loading">Loading...</div>';
+      try {
+        const products = await api.getProducts(query ? { q: query } : {});
+        grid.innerHTML = products.length
+          ? products.map(renderProductCard).join('')
+          : '<p class="empty">No related products found.</p>';
+        info.textContent = query
+          ? `Showing ${products.length} related result(s) for "${query}".`
+          : '';
+      } catch {
+        grid.innerHTML = '<p class="error">Failed to load products.</p>';
+        info.textContent = '';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initAuth();
+      loadHomeProductsWithSearch();
+      updateCartCount();
+      document.getElementById('homeSearchBtn')?.addEventListener('click', loadHomeProductsWithSearch);
+      document.getElementById('homeClearSearchBtn')?.addEventListener('click', () => {
+        document.getElementById('homeSearchInput').value = '';
+        loadHomeProductsWithSearch();
+      });
+      document.getElementById('homeSearchInput')?.addEventListener('input', () => {
+        clearTimeout(homeSearchTimer);
+        homeSearchTimer = setTimeout(loadHomeProductsWithSearch, 250);
+      });
+    });
+  </script>
+</body>
+</html>

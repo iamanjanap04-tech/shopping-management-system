@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Orders - ShopMax</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="/" class="logo">ShopMax</a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/cart.html" class="cart-link">
+          <span class="cart-icon">🛒</span>
+          <span id="cartCount" class="cart-badge">0</span>
+        </a>
+        <a href="/orders.html" class="btn btn-outline">My Orders</a>
+        <button id="logoutBtn" class="btn btn-outline">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content orders-page">
+    <h2>Order Tracking</h2>
+    <div id="ordersList" class="orders-list">
+      <div class="loading">Loading...</div>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    const statusSteps = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      initAuth();
+      updateCartCount();
+      if (!api.getToken()) {
+        location.href = '/login.html?redirect=' + location.href;
+        return;
+      }
+      loadOrders();
+    });
+
+    async function loadOrders() {
+      try {
+        const orders = await api.getOrders();
+        if (!orders.length) {
+          document.getElementById('ordersList').innerHTML = '<p class="empty">No orders yet.</p>';
+          return;
+        }
+        const formatMoney = (value) => Number(value || 0).toFixed(2);
+        document.getElementById('ordersList').innerHTML = orders.map(o => {
+          const idx = statusSteps.indexOf(o.STATUS);
+          return `
+            <div class="order-card">
+              <div class="order-header">
+                <h3>Order #${o.ORDER_ID}</h3>
+                <span class="order-date">${new Date(o.CREATED_AT).toLocaleDateString()}</span>
+                <span class="order-total">$${formatMoney(o.TOTAL_AMOUNT)}</span>
+              </div>
+              <div class="order-progress">
+                ${statusSteps.map((s, i) => `
+                  <div class="progress-step ${i <= idx ? 'done' : ''} ${o.STATUS === s ? 'current' : ''}">
+                    <span class="step-dot"></span>
+                    <span>${s}</span>
+                  </div>
+                `).join('')}
+              </div>
+              <ul class="order-items">
+                ${(o.items || []).map(i => `<li>${i.NAME} × ${i.QUANTITY}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        document.getElementById('ordersList').innerHTML = `<p class="error">${e.message || 'Failed to load orders.'}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
