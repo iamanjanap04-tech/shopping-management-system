@@ -39,11 +39,10 @@ app.use('/api/reports', reportRoutes);
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-
-// Start server
 async function start() {
   try {
-    await initialize(); // DB connection
+    // ❌ TEMP disable DB
+    // await initialize();
 
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on port ${PORT}`);
