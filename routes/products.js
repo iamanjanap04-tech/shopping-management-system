@@ -3,7 +3,6 @@ const router = express.Router();
 
 const db = require('../config/db');
 
-const db = require("../config/db");
 
 const { auth, adminOnly } = require('../middleware/auth');
 const multer = require('multer');
